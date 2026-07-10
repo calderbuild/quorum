@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/*
+ * Quorum visual theme -- dark technical / operational console register
+ * (CockroachDB Console, Grafana), not a consumer AI-SaaS gradient look.
+ *
+ * Accent is a terminal amber (#d99a3d), not any shade of AI-purple/indigo.
+ * Amber reads as "database/terminal status light" rather than "AI startup" --
+ * it's the color of a CRT status LED, not a marketing gradient.
+ */
+
+:root {
+  --background: #0b0e11;
+  --background-elevated: #12161b;
+  --background-inset: #080a0c;
+  --foreground: #e6e9ec;
+  --foreground-muted: #8b939c;
+  --foreground-subtle: #565f68;
+  --border: #232a31;
+  --border-strong: #323b44;
+
+  /* Accent: terminal amber -- status/live/primary actions */
+  --accent: #d99a3d;
+  --accent-strong: #f0b155;
+  --accent-dim: #8a642a;
+
+  /* Secondary data accent: cool cyan -- used for links, secondary series */
+  --data-cyan: #4fd1c5;
+
+  /* Semantic status colors */
+  --status-ok: #4ade80;
+  --status-conflict: #f0b155;
+  --status-error: #f87171;
+
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-elevated: var(--background-elevated);
+  --color-background-inset: var(--background-inset);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-dim: var(--accent-dim);
+  --color-data-cyan: var(--data-cyan);
+  --color-status-ok: var(--status-ok);
+  --color-status-conflict: var(--status-conflict);
+  --color-status-error: var(--status-error);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
