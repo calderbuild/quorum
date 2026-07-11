@@ -5,7 +5,7 @@ A CockroachDB-backed shared memory layer for multi-agent systems. Concurrent wri
 Built for the CockroachDB x AWS "Build with Agentic Memory" hackathon.
 
 - **Live demo:** https://quorum.18.206.130.120.sslip.io
-- **Video walkthrough:** TBD
+- **Video walkthrough:** https://youtu.be/6n70e6BlqkI
 - **Repo:** https://github.com/calderbuild/quorum
 
 ## The problem
