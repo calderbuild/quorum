@@ -10,11 +10,14 @@ timestamp descending. If other units start writing `audit_log` directly
 later, those rows show up here for free alongside the merge.
 """
 
-from uuid import UUID
+import json
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
 import psycopg
 from psycopg.rows import dict_row
 
+from app.config import get_settings
 from app.db import run_serializable
 
 
@@ -80,3 +83,50 @@ async def get_audit_trail(item_id: UUID | None = None, limit: int = 100) -> list
         return merged[:limit]
 
     return await run_serializable(_txn)
+
+
+class AuditExportNotConfigured(Exception):
+    """Raised when AUDIT_S3_BUCKET is unset -- S3 export is opt-in, not required
+    for local/sim demos, only for the deployed AWS-backed one."""
+
+
+async def export_audit_trail_to_s3(
+    item_id: UUID | None = None, limit: int = 100
+) -> str:
+    """Write the audit trail (same rows `get_audit_trail` returns) to S3 as a
+    JSON object and return its `s3://bucket/key` URI.
+
+    boto3 is called synchronously here, matching the existing sync-boto3
+    pattern already used in app/llm/embeddings.py's bedrock branch -- this is
+    a low-throughput demo/audit path, not a hot request path, so a thread
+    offload isn't worth the added complexity.
+    """
+    settings = get_settings()
+    if not settings.audit_s3_bucket:
+        raise AuditExportNotConfigured("AUDIT_S3_BUCKET is not set")
+
+    import boto3
+
+    entries = await get_audit_trail(item_id=item_id, limit=limit)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    scope = str(item_id) if item_id is not None else "all"
+    key = f"audit-exports/{scope}/{ts}-{uuid4().hex[:8]}.json"
+
+    body = json.dumps(
+        {
+            "exported_at": ts,
+            "item_id": scope,
+            "entry_count": len(entries),
+            "entries": entries,
+        },
+        default=str,
+    ).encode("utf-8")
+
+    s3 = boto3.client("s3", region_name=settings.aws_region)
+    s3.put_object(
+        Bucket=settings.audit_s3_bucket,
+        Key=key,
+        Body=body,
+        ContentType="application/json",
+    )
+    return f"s3://{settings.audit_s3_bucket}/{key}"

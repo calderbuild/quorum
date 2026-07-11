@@ -54,6 +54,56 @@ services:
         /cockroach/cockroach sql --insecure --host=crdb1:26257 -e 'CREATE DATABASE IF NOT EXISTS quorum;'
       "
 
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      # Overrides backend/.env's localhost DATABASE_URL -- inside the
+      # compose network the CockroachDB nodes are reachable by service name,
+      # not localhost. env_file values are defaults; explicit `environment`
+      # entries win, per Compose's documented precedence.
+      DATABASE_URL: postgresql://root@crdb1:26257/quorum?sslmode=disable
+    ports:
+      - "8000:8000"
+    depends_on:
+      crdb-init:
+        condition: service_completed_successfully
+    networks: [quorum-net]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # NEXT_PUBLIC_* vars are inlined at build time -- see frontend/Dockerfile.
+        # Defaults to same-origin :8000 for local `docker compose up`; the
+        # production deploy overrides this via the root .env (API_DOMAIN).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on: [backend]
+    networks: [quorum-net]
+
+  # HTTPS reverse proxy for the public EC2 deploy -- not part of local dev,
+  # where frontend/backend are hit directly on their published ports above.
+  # `docker compose --profile prod up -d` (see README) brings this up too,
+  # once DOMAIN/API_DOMAIN are set in the root .env to real hostnames (Caddy
+  # can't issue a Let's Encrypt cert for "localhost").
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["prod"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [frontend, backend]
+    networks: [quorum-net]
+
 networks:
   quorum-net:
     driver: bridge
@@ -62,3 +112,5 @@ volumes:
   crdb1-data:
   crdb2-data:
   crdb3-data:
+  caddy-data:
+  caddy-config:

@@ -62,31 +62,35 @@ async def adjudicate(fact_a: str, fact_b: str, context: str) -> AdjudicationResu
         return AdjudicationResult(value=text, rationale="[openai] see value")
 
     if settings.quorum_mode == "bedrock":
-        import json
+        # AWS retired the classic boto3 bedrock-runtime InvokeModel catalog
+        # for current Anthropic models in favor of the "Bedrock Mantle"
+        # endpoint, which is authenticated with a Bedrock API key (not an
+        # IAM/SigV4 credential) and speaks the standard Anthropic Messages
+        # API shape via the Anthropic SDK itself, just pointed at a
+        # different base_url. Confirmed live against this account's Bedrock
+        # console (Live API docs page) on 2026-07-11 -- do not revert to
+        # boto3 invoke_model() for Anthropic models without re-checking the
+        # console, since the old catalog shows zero Anthropic serverless
+        # models in this account/region.
+        from anthropic import AsyncAnthropic
 
-        import boto3
-
-        brt = boto3.client("bedrock-runtime", region_name=settings.aws_region)
-        body = json.dumps(
-            {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 300,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": _ADJUDICATE_PROMPT.format(
-                            context=context, fact_a=fact_a, fact_b=fact_b
-                        ),
-                    }
-                ],
-            }
+        client = AsyncAnthropic(
+            base_url=f"https://bedrock-mantle.{settings.aws_region}.api.aws/anthropic",
+            api_key=settings.bedrock_api_key,
         )
-        resp = brt.invoke_model(
-            modelId="anthropic.claude-sonnet-4-6-v1:0",  # verify current Bedrock model id before use
-            body=body,
+        resp = await client.messages.create(
+            model="anthropic.claude-sonnet-5",
+            max_tokens=300,
+            messages=[
+                {
+                    "role": "user",
+                    "content": _ADJUDICATE_PROMPT.format(
+                        context=context, fact_a=fact_a, fact_b=fact_b
+                    ),
+                }
+            ],
         )
-        payload = json.loads(resp["body"].read())
-        text = payload["content"][0]["text"]
+        text = resp.content[0].text
         return AdjudicationResult(value=text, rationale="[bedrock] see value")
 
     raise ValueError(f"Unknown QUORUM_MODE: {settings.quorum_mode}")

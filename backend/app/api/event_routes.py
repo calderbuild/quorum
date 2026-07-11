@@ -10,7 +10,11 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from app.events.audit import get_audit_trail
+from app.events.audit import (
+    AuditExportNotConfigured,
+    export_audit_trail_to_s3,
+    get_audit_trail,
+)
 from app.events.timetravel import get_history, get_state_at, rollback
 from app.memory.write import ConflictDetected
 from app.models import MemoryItem
@@ -59,6 +63,18 @@ async def audit_trail(
     item_id: UUID | None = Query(default=None), limit: int = Query(default=100)
 ) -> list[dict]:
     return await get_audit_trail(item_id=item_id, limit=limit)
+
+
+@router.post("/audit-export")
+async def audit_export(
+    item_id: UUID | None = Query(default=None), limit: int = Query(default=100)
+) -> dict:
+    """Export the audit trail to S3 (AWS integration -- requires AUDIT_S3_BUCKET)."""
+    try:
+        uri = await export_audit_trail_to_s3(item_id=item_id, limit=limit)
+    except AuditExportNotConfigured as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return {"s3_uri": uri}
 
 
 @router.post("/rollback", response_model=MemoryItem)
