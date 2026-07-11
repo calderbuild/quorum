@@ -48,10 +48,13 @@ services:
       crdb3:
         condition: service_healthy
     networks: [quorum-net]
+    volumes:
+      - ./infra/crdb/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     entrypoint: >
       /bin/sh -c "
         /cockroach/cockroach init --insecure --host=crdb1:26257 || true &&
-        /cockroach/cockroach sql --insecure --host=crdb1:26257 -e 'CREATE DATABASE IF NOT EXISTS quorum;'
+        /cockroach/cockroach sql --insecure --host=crdb1:26257 -e 'CREATE DATABASE IF NOT EXISTS quorum;' &&
+        /cockroach/cockroach sql --insecure --host=crdb1:26257 -d quorum --file /docker-entrypoint-initdb.d/init.sql
       "
 
   backend:
