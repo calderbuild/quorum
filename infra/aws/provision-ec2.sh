@@ -8,8 +8,9 @@
 #
 # What it creates: an IAM role scoped to S3 PutObject/GetObject/ListBucket on
 # the audit bucket only (no broad permissions, no static keys on the box),
-# a key pair, a security group open on 22/80/443 only, a t3.large Ubuntu
-# instance with that role attached, and an Elastic IP.
+# a key pair, a security group open on 22/80/443 only, an m7i-flex.large
+# Ubuntu instance (free-tier eligible on this account, 2 vCPU/8GB) with that
+# role attached, and an Elastic IP.
 #
 # It does NOT configure DNS, clone the repo, or start docker compose --
 # that happens over SSH after this script prints the Elastic IP (see the
@@ -25,7 +26,7 @@ PROFILE_NAME="quorum-ec2-profile"
 KEY_NAME="quorum-key"
 SG_NAME="quorum-sg"
 INSTANCE_NAME="quorum-demo"
-INSTANCE_TYPE="t3.large"
+INSTANCE_TYPE="m7i-flex.large"  # free-tier eligible on this account; t3.large is not
 
 echo "== IAM role =="
 if ! aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
